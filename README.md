@@ -9,6 +9,8 @@ This README explains **everything**, from scratch: what the project does, what
 tools it's built with, how every file fits together, and what happens
 step-by-step when you use it.
 
+![Web UI screenshot](docs/webapp-screenshot.png)
+
 ---
 
 ## 1. What problem does this solve?
