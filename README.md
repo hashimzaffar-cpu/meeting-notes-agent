@@ -70,7 +70,7 @@ prompts and tools are requests; the code check in step 3 is the guarantee.
 | **Python (3.10+)** | Programming language | Everything is written in it; `smolagents` requires 3.10 or newer |
 | **Pydantic** | A Python library for defining data "shapes" (schemas) | Forces the agent's final JSON answer into a strict, typed structure |
 | **`smolagents`** | Hugging Face's agent framework | Runs the actual reasoning loop: a `ToolCallingAgent` that can call tools before giving its final answer |
-| **Groq** (default) | A very fast, free-tier LLM hosting service | Runs `openai/gpt-oss-120b`, a large enough model to follow tool-calling instructions reliably, for free |
+| **Groq** (default) | A very fast, free-tier LLM hosting service | Runs `qwen/qwen3.8-27b`, a large enough model to follow tool-calling instructions reliably, for free |
 | **MLX** (optional) | Apple's on-device ML framework | Lets the agent run entirely offline on Apple Silicon, no account or token needed — see the note on model size in §7 |
 | **Hugging Face `huggingface_hub`** (optional) | Python client for calling AI models hosted by Hugging Face | An alternate backend, if you'd rather use HF's hosted Qwen2.5-7B-Instruct and have Inference Providers credits |
 | **Flask** | A small Python web server framework | Serves the web page and handles the "Extract" button's request |
@@ -137,7 +137,11 @@ Three interchangeable "runner" classes, one per backend, all implementing the
 same `AgentRunner` protocol (`.run(notes, attendees) -> str`) so the rest of
 the app doesn't care which one is in use:
 - `GroqAgentRunner` (default) — a `smolagents` `OpenAIServerModel` pointed at
-  Groq's OpenAI-compatible endpoint, running `openai/gpt-oss-120b`.
+  Groq's OpenAI-compatible endpoint, running `qwen/qwen3.8-27b`, with
+  `max_tokens=900` (Groq's free tier caps output tokens *per minute*, and
+  checks that cap against the request's declared `max_tokens` — leaving it
+  unset asks for far more headroom than this task needs and trips the limit
+  almost immediately) and a 120s client timeout.
 - `LocalAgentRunner` — a `smolagents` `MLXModel` running a small model
   on-device (Apple Silicon only). No token, but noticeably lower answer
   quality at a size that fits in 8GB of RAM — see the note in §7.
@@ -205,6 +209,8 @@ checking that `validate.py` correctly:
 - demotes a `null` owner to `unassigned`,
 - rejects a partially-matching name like "Marcus Lee" when only "Marcus" was
   actually mentioned,
+- doesn't duplicate a task that a model lists both as a null-owner action
+  and already in `unassigned`,
 
 plus a direct test of `verify_owner` (from `tools.py`) confirming it agrees
 with `validate.py` on the same cases.
@@ -304,8 +310,17 @@ echo "..." | python3 -m action_items.cli --backend hf --attendees "Aiza,Sam"
 > stated owners to `null`, and once even copied an unrelated task straight
 > out of the prompt's own worked examples. A large enough model matters for
 > more than just formatting — Groq's free tier gets you a genuinely capable
-> model (120B parameters) without needing the RAM or GPU to run one that size
+> model (27B parameters) without needing the RAM or GPU to run one that size
 > yourself.
+>
+> **Why Qwen and not a bigger model?** We first tried Groq's own
+> `openai/gpt-oss-120b` (120B parameters, larger than the Qwen model we
+> settled on). It consistently called a tool literally named `"answer"`
+> instead of `final_answer` — a quirk of how gpt-oss models format tool
+> calls internally — which failed every single run, not occasionally.
+> Bigger isn't automatically better for this: what actually matters is
+> whether a model's tool-calling conventions match what the agent framework
+> expects. Qwen's did; gpt-oss's didn't.
 
 ## 8. The one thing worth remembering
 
