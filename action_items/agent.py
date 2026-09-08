@@ -62,17 +62,17 @@ def _run_tool_calling_agent(model, notes: str, attendees: list[str]) -> str:
 class LocalAgentRunner:
     """Runs a smolagents ToolCallingAgent on a model loaded locally via MLX.
 
-    This is the default backend: it needs no API token, no per-call billing,
-    and no external service to be up -- the model runs on-device (Apple
-    Silicon, via `mlx-lm`). The first call downloads the model from the
-    Hugging Face Hub once and caches it; every call after that is fully
-    offline.
+    Needs no API token, no per-call billing, and no external service to be
+    up -- the model runs on-device (Apple Silicon, via `mlx-lm`). The first
+    call downloads the model from the Hugging Face Hub once and caches it;
+    every call after that is fully offline. Not the default: a small enough
+    model to fit in this machine's RAM isn't reliable enough to trust -- see
+    the README for why.
     """
 
     def __init__(self, model: str = DEFAULT_LOCAL_MODEL):
         from smolagents import MLXModel
 
-        self._model_id = model
         self._model = MLXModel(model_id=model, max_tokens=2000)
 
     def run(self, notes: str, attendees: list[str]) -> str:
@@ -92,7 +92,6 @@ class GroqAgentRunner:
     def __init__(self, model: str = DEFAULT_GROQ_MODEL, api_key: str | None = None):
         from smolagents import OpenAIServerModel
 
-        self._model_id = model
         self._model = OpenAIServerModel(
             model_id=model,
             api_base=GROQ_API_BASE,
@@ -132,7 +131,6 @@ class HFAgentRunner:
     ):
         from smolagents import InferenceClientModel
 
-        self._model_id = model
         self._model = InferenceClientModel(model_id=model, token=token, provider=provider)
 
     def run(self, notes: str, attendees: list[str]) -> str:
@@ -170,7 +168,7 @@ def extract(notes: str, attendees: list[str], runner: AgentRunner) -> Output:
     and retry when it fails the check.
     """
     last_error: Exception | None = None
-    for attempt in range(MAX_MALFORMED_ANSWER_RETRIES):
+    for _ in range(MAX_MALFORMED_ANSWER_RETRIES):
         raw = runner.run(notes, attendees)
         try:
             data = _parse_final_answer(raw)
