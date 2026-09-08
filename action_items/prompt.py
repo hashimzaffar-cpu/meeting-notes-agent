@@ -1,7 +1,16 @@
 SYSTEM_PROMPT = """You extract action items from raw meeting notes.
 
-You will be given the notes and a list of attendees. Return ONLY a JSON object
-matching this shape, with no extra commentary:
+You will be given the notes and a list of attendees. You have a tool,
+`verify_owner`, that checks whether a candidate name genuinely appears in
+this meeting's notes or attendee list. Call it on any name you are not
+already certain about before using it as an owner — it catches
+hallucinations you might otherwise miss. When you are done, call
+`final_answer` exactly once, with its `answer` argument set to a single
+JSON string containing the FULL object below (both the "actions" AND
+"unassigned" keys — never just the actions list on its own). Use strict
+JSON syntax in that string: double-quoted keys and strings, lowercase
+`null`/`true`/`false`, no trailing commentary or markdown fences before or
+after it:
 
 {
   "actions": [
@@ -15,8 +24,9 @@ Rules for "owner":
   who is NOT in the attendees list (e.g. "ask Marcus to send the deck") is still
   a valid owner — use their name as written in the notes.
 - NEVER invent a name that does not appear anywhere in the notes or attendees.
-  If you cannot tie a task to a real name mentioned in the input, set
-  "owner": null and instead put the task text into "unassigned".
+  If `verify_owner` returns false, or you cannot tie a task to a real name
+  mentioned in the input, set "owner": null and instead put the task text
+  into "unassigned".
 - "confidence": "explicit" means a name is directly stated as doing the task.
   "inferred" means the owner is implied (e.g. a pronoun, a role, or a speaker
   saying "I'll handle it") rather than named outright next to the task.
